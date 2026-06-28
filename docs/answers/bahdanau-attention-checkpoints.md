@@ -175,6 +175,72 @@ context:      (batch_size, 1, hidden_size)
 attn_weights: (batch_size, src_len)
 ```
 
+### BahdanauAttention 要实现的接口
+
+`BahdanauAttention` 是一个 `nn.Module`，需要实现以下接口：
+
+#### 1. `__init__(self, hidden_size)`
+
+构造函数只接收 `hidden_size`，**不要**接收 `encoder_outputs` 或 `decoder_hidden`（这些是 forward 时才传入的运行时数据，不是构造参数）。
+
+在 `__init__` 里创建三个线性层：
+
+```python
+def __init__(self, hidden_size: int):
+    super().__init__()
+    self.W_s = nn.Linear(hidden_size, hidden_size)  # 作用在 decoder hidden 上
+    self.W_h = nn.Linear(hidden_size, hidden_size)  # 作用在 encoder_outputs 上
+    self.v_a = nn.Linear(hidden_size, 1)            # 把对齐向量压成一个分数
+```
+
+对应公式 `e_ti = v_a^T tanh(W_s s_{t-1} + W_h h_i)`：
+
+```text
+W_s: hidden_size -> hidden_size
+W_h: hidden_size -> hidden_size
+v_a: hidden_size -> 1
+```
+
+#### 2. `forward(self, decoder_hidden_last, encoder_outputs)`
+
+唯一对外暴露的计算接口，签名如下：
+
+```python
+def forward(self, decoder_hidden_last: Tensor, encoder_outputs: Tensor):
+    """
+    decoder_hidden_last: (batch_size, hidden_size)        # decoder 上一步的 hidden，即 hidden[-1]
+    encoder_outputs:     (batch_size, src_len, hidden_size)
+
+    返回:
+        context:      (batch_size, 1, hidden_size)
+        attn_weights: (batch_size, src_len)
+    """
+    ...
+    return context, attn_weights
+```
+
+接口约定：
+
+```text
+输入 decoder_hidden_last 用 (batch_size, hidden_size)，
+    在 forward_step 里用 hidden[-1] 取出（不要传整个 (num_layers, batch, hidden)）。
+返回 context 保持 (batch_size, 1, hidden_size)，
+    方便后面和 embedded 在最后一维拼接。
+返回 attn_weights 保持 (batch_size, src_len)，
+    方便检查每行 sum 是否为 1，以及做可视化。
+```
+
+#### 接口最小约定总结
+
+| 方法 | 输入 | 输出 |
+| --- | --- | --- |
+| `__init__` | `hidden_size: int` | 无 |
+| `forward` | `decoder_hidden_last: (batch, hidden)`、`encoder_outputs: (batch, src_len, hidden)` | `context: (batch, 1, hidden)`、`attn_weights: (batch, src_len)` |
+
+> 注意：当前 notebook 里 `class BahdanauAttention(nn.Module)` 的 `__init__` 误写成
+> `def __init__(self, encoder_outputs, decoder_hidden)`，需要改成 `def __init__(self, hidden_size)`。
+> 运行时数据通过 `forward` 传入，而不是构造函数。
+
 ### 你要完成
 
 先不要急着接入 Decoder。

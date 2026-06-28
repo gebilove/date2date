@@ -122,6 +122,43 @@ Create checkpoints that are:
 - Non-spoonfeeding by default: do not provide complete code unless the user asks.
 - Context-aware: reuse existing files, functions, commands, constraints, or naming when relevant.
 - Portable: avoid project-specific assumptions unless present in the user request/context.
+- Interface-explicit: whenever a checkpoint introduces a class, module, component, or service, the checkpoint must enumerate the interfaces it has to implement (see below).
+
+## Interface specification rule
+
+When a checkpoint asks the user to build a class, module, component, API, or any unit with callable surface, the checkpoint MUST explicitly list the function/method interfaces to implement — not just the conceptual inputs/outputs.
+
+For each interface, specify:
+
+- Method/function name (e.g. `__init__`, `forward`, `handle`, `predict`).
+- Parameter names and their types/shapes.
+- Return value(s) and their types/shapes.
+- A one-line note on what belongs in construction vs. runtime (e.g. what goes in `__init__` vs `forward`), when that distinction matters.
+
+Present interfaces as a signature block plus, when there are multiple methods, a summary table:
+
+```markdown
+### <ClassName> 要实现的接口
+
+#### 1. `__init__(self, <params>)`
+<what to construct here; what must NOT be a constructor param>
+
+#### 2. `<method>(self, <params>)`
+```python
+def <method>(self, arg: Type) -> RetType:
+    """
+    arg: <shape/meaning>
+    返回: <shape/meaning>
+    """
+```
+
+| 方法 | 输入 | 输出 |
+| --- | --- | --- |
+| `__init__` | ... | 无 |
+| `<method>` | ... | ... |
+```
+
+Keep this non-spoonfeeding: give signatures, shapes, and contracts, but leave the method body for the user to implement unless they ask for code. If existing code already has a wrong or placeholder signature, point it out and state the corrected interface.
 
 ## Recommended checkpoint types
 
