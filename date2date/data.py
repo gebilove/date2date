@@ -50,14 +50,15 @@ def string_from_tensor(tensor):
 # 输入长度固定为 10：YYYY-MM-DD。日和月都是2位，且日以28天计数
 # 输出长度固定为 10：DD/MM/YYYY
 # 再加 EOS 后 target 长度为 11。
-def make_sample(TRAIN_SIZE):
+def make_sample(TRAIN_SIZE, rng=None):
+    rng = rng or random
     ep = TRAIN_SIZE
     inputs = []
     targets = []
     for i in range(ep):
-        year = random.randint(1950, 2050)
-        day = random.randint(1, 28)
-        month = random.randint(1, 12)
+        year = rng.randint(1950, 2050)
+        day = rng.randint(1, 28)
+        month = rng.randint(1, 12)
         input = f"{year}-{month:02d}-{day:02d}"
         inputs.append(input)
         target = f"{day:02d}/{month:02d}/{year}"

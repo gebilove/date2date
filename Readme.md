@@ -14,6 +14,43 @@ YYYY-MM-DD -> DD/MM/YYYY
 
 项目目标不是用神经网络替代规则字符串处理，而是通过同一个任务，从零实现并比较不同序列建模结构。
 
+## 实验结果
+
+<!-- EXPERIMENT_RESULTS_START -->
+
+| 模型 | 测试集 | Exact Match | 字符准确率 | 参数量 | 训练耗时 |
+|---|---:|---:|---:|---:|---:|
+| bahdanau | 100 | 100.00% | 100.00% | 1,128,719 | 202.3s |
+| vanilla_gru | 100 | 76.00% | 96.10% | 800,270 | 118.9s |
+
+> 结果由 `experiments/experiments.csv` 自动生成；每种模型展示测试 Exact Match 最优的一次运行。
+
+<!-- EXPERIMENT_RESULTS_END -->
+
+## 自动运行实验
+
+在项目根目录运行：
+
+```bash
+.venv/bin/python -m date2date.experiment \
+  --model bahdanau \
+  --hidden-size 256 \
+  --lr 0.001 \
+  --train-size 1000 \
+  --test-size 100 \
+  --epochs 10 \
+  --seed 42 \
+  --notes "Bahdanau Attention 基准实验"
+```
+
+命令会自动复用固定测试集，并保存配置、指标、固定样例预测、checkpoint 和 `experiments/experiments.csv`。训练成功后，README 中的实验结果表也会同步更新。
+
+已有实验记录时，也可以只刷新 README：
+
+```bash
+.venv/bin/python -m date2date.report
+```
+
 本项目从 **Encoder-Decoder RNN** 开始，逐步演进到：
 
 1. Encoder-Decoder RNN

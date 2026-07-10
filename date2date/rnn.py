@@ -5,7 +5,10 @@ import torch.nn as nn
 from torch import Tensor
 from typing import Optional
 
-from data import SOS_token
+try:
+    from .data import SOS_token
+except ImportError:
+    from data import SOS_token
 
 
 class EncoderRNN(nn.Module):
@@ -43,7 +46,9 @@ class DecoderRNN(nn.Module):
         hidden = encoder_output[:, -1: , :].permute(1, 0, 2)
         outputs = []
         # input_token的格式是 (batch_size,seq_len)
-        input_token = torch.full((batch_size, 1), SOS_token, dtype=torch.long) #设置起始词元
+        input_token = torch.full(
+            (batch_size, 1), SOS_token, dtype=torch.long, device=encoder_output.device
+        )  # 设置起始词元
         loop_len = max_len
         if target_tensor is not None:
             loop_len = target_tensor.shape[1]

@@ -2,13 +2,22 @@
 
 import torch
 
-from data import (
-    tensor_from_string,
-    string_from_tensor,
-    SOS_token,
-    EOS_token,
-    vocab_size,
-)
+try:
+    from .data import (
+        tensor_from_string,
+        string_from_tensor,
+        SOS_token,
+        EOS_token,
+        vocab_size,
+    )
+except ImportError:
+    from data import (
+        tensor_from_string,
+        string_from_tensor,
+        SOS_token,
+        EOS_token,
+        vocab_size,
+    )
 
 
 def train_one_sample(input_str, target_str, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion):

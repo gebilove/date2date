@@ -1,0 +1,32 @@
+[
+  {
+    "input": "2002-01-23",
+    "target": "23/01/2002",
+    "prediction": "23/01/2002",
+    "correct": true
+  },
+  {
+    "input": "1999-12-08",
+    "target": "08/12/1999",
+    "prediction": "08/12/1999",
+    "correct": true
+  },
+  {
+    "input": "2020-03-07",
+    "target": "07/03/2020",
+    "prediction": "07/03/2020",
+    "correct": true
+  },
+  {
+    "input": "1950-11-28",
+    "target": "28/11/1950",
+    "prediction": "28/11/1959",
+    "correct": false
+  },
+  {
+    "input": "2048-06-15",
+    "target": "15/06/2048",
+    "prediction": "15/06/2048",
+    "correct": true
+  }
+]

@@ -5,7 +5,10 @@ import torch.nn as nn
 from torch import Tensor
 from typing import Optional
 
-from data import SOS_token
+try:
+    from .data import SOS_token
+except ImportError:
+    from data import SOS_token
 
 
 class BahdanauAttention(nn.Module):
@@ -35,7 +38,7 @@ class DecoderRNN_WithAttention(nn.Module):
         self.hidden_size = hidden_size
         self.attention = BahdanauAttention(self.hidden_size, self.hidden_size, self.hidden_size)
         self.embedding = nn.Embedding(vocab_size, hidden_size)
-        self.rnn = nn.RNN(hidden_size*2, hidden_size, batch_first=True)
+        self.rnn = nn.GRU(hidden_size*2, hidden_size, batch_first=True)
         self.out = nn.Linear(hidden_size, output_size)
 
     def forward(self, encoder_output: Tensor, target_tensor: Optional[Tensor] = None, max_len: int = 20):
@@ -49,7 +52,9 @@ class DecoderRNN_WithAttention(nn.Module):
         hidden = encoder_output[:,-1:].permute(1, 0, 2)
         outputs = []
         # input_token的格式是 (batch_size,seq_len)
-        input_token = torch.full((batch_size, 1), SOS_token, dtype=torch.long) #设置起始词元
+        input_token = torch.full(
+            (batch_size, 1), SOS_token, dtype=torch.long, device=encoder_output.device
+        )  # 设置起始词元
         loop_len = max_len
         if target_tensor is not None:
             loop_len = target_tensor.shape[1]
