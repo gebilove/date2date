@@ -42,17 +42,22 @@ class AdditiveAttention(nn.Module):
         self.wk = nn.Linear(key_size, hidden_size)
         self.wv = nn.Linear(hidden_size, 1)
 
-    # quries.shape(len, query_size)
-    # keys.shape(len, len - 1, key_size)
-    # values.shape(len, len - 1, value_size)
+    # quries.shape(batch, len_q, query_size)
+    # keys.shape(batch, len_k, key_size)
+    # values.shape(batch, len_k, value_size)
     def forward(self, queries, keys, values):
+        # q.shape(batch, len_q, hidden_size)
         q = self.wq(queries)
+        # k.shape(batch, len_k, hidden_size)
         k = self.wk(keys)
-        t = torch.tanh(q.unsqueeze(1) + k)
+        # t.shape(batch, len_q, len_k, hidden_size)
+        t = torch.tanh(q.unsqueeze(2) + k.unsqueeze(1))
+        # v.shape(batch, len_q, len_k, 1)
         v = self.wv(t)
-        self.attention_weights = nn.functional.softmax(v, dim=1)
-        preds = (self.attention_weights * values).sum(dim=1)
-
+        # v.shape(batch, len_q, len_k)
+        v = v.squeeze(-1)
+        self.attention_weights = nn.functional.softmax(v, dim=-1)
+        preds = torch.bmm(self.attention_weights, values)
         return preds
 
 class ScalarAdditiveAttention(nn.Module):
@@ -90,6 +95,47 @@ class DotProductAttention(nn.Module):
         self.attention_weights = nn.functional.softmax(scores,dim = -1)
         preds = torch.bmm(self.attention_weights, values)
         return preds
+
+class MultiHeadAttention(nn.Module):
+    def __init__(self, query_size, key_size, value_size, hidden_size, head_count) -> None:
+        super().__init__()
+        self.wq = nn.Linear(query_size, hidden_size * head_count)
+        self.wk = nn.Linear(key_size, hidden_size * head_count)
+        self.wv = nn.Linear(value_size, hidden_size * head_count)
+        self.wo = nn.Linear(hidden_size * head_count, hidden_size)
+        self.head_count = head_count
+        self.hidden_size = hidden_size
+        self.attention = DotProductAttention()
+
+    def forward(self, queries, keys, values):
+        prj_q = self.wq(queries)
+        prj_k = self.wk(keys)
+        prj_v = self.wv(values)
+
+        prj_q = self.split_heads_for_attention(prj_q)
+        prj_k = self.split_heads_for_attention(prj_k)
+        prj_v = self.split_heads_for_attention(prj_v)
+
+
+        preds = self.attention(prj_q, prj_k, prj_v)
+
+        preds = self.combine_attention(preds)
+
+        preds =self.wo(preds)
+
+        return preds
+    def split_heads_for_attention(self, tensor):
+        tensor = tensor.reshape(tensor.shape[0], tensor.shape[1], self.head_count, -1)
+        tensor = tensor.permute(0, 2, 1, 3)
+        tensor = tensor.reshape(-1, tensor.shape[2], tensor.shape[3])
+        return tensor
+
+
+    def combine_attention(self, tensor):
+        tensor = tensor.reshape(tensor.shape[0]//self.head_count, self.head_count, tensor.shape[1], tensor.shape[2])
+        tensor = tensor.permute(0, 2, 1, 3)
+        tensor = tensor.reshape(tensor.shape[0], tensor.shape[1], -1)
+        return tensor
 
 
 @dataclass
