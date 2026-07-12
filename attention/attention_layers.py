@@ -73,6 +73,24 @@ class ScalarAdditiveAttention(nn.Module):
         self.attention_weights = self.attention.attention_weights.squeeze(-1)
         return output.reshape(-1)
 
+class DotProductAttention(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+
+    # queries.shape(batch, len_q, h)
+    # keys.shape(batch, len_k, h)
+    # values.shape(batch, len_k, value_size)
+    def forward(self, queries, keys, values):
+        d = queries.shape[-1]
+
+        # scores.shape (batch, len_q, len_k)
+        scores = torch.bmm( queries, keys.transpose(1,2)) /  (d**0.5)
+
+        # attention_weights.shape (batch, len_q, len_k)
+        self.attention_weights = nn.functional.softmax(scores,dim = -1)
+        preds = torch.bmm(self.attention_weights, values)
+        return preds
+
 
 @dataclass
 class KernelRegressionData:

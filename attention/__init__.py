@@ -7,6 +7,7 @@ from .attention_layers import (
     make_test_pairs,
     target_function,
     ScalarAdditiveAttention,
+    DotProductAttention,
 )
 
 __all__ = [
@@ -18,4 +19,5 @@ __all__ = [
     "make_test_pairs",
     "target_function",
     "ScalarAdditiveAttention",
+    "DotProductAttention"
 ]
