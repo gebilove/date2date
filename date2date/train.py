@@ -20,9 +20,17 @@ except ImportError:
     )
 
 
-def train_one_sample(input_str, target_str, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion):
-    input_tensor = tensor_from_string(input_str)
-    target_tensor = tensor_from_string(target_str, True)
+def train_batch_samples(input_strs, target_strs, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion):
+    encoder.train()
+    decoder.train()
+    input_tensor = torch.cat(
+        [tensor_from_string(s) for s in input_strs],
+        dim=0,
+    )
+    target_tensor = torch.cat(
+        [tensor_from_string(s, True) for s in target_strs],
+        dim=0,
+    )
     encoder_optimizer.zero_grad()
     decoder_optimizer.zero_grad()
     encoder_output, encoder_hidden = encoder(input_tensor)

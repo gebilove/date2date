@@ -28,7 +28,7 @@ from .experiment_log import (
 )
 from .report import update_readme
 from .rnn import DecoderRNN, EncoderRNN
-from .train import char_accuracy, eval_samples, generate, train_one_sample
+from .train import char_accuracy, eval_samples, generate, train_batch_samples
 
 MODEL_NAMES = ("vanilla_gru", "bahdanau")
 
@@ -93,6 +93,7 @@ def run_experiment(args: argparse.Namespace) -> dict[str, Any]:
         "train_size": args.train_size,
         "test_size": args.test_size,
         "epochs": args.epochs,
+        "batch_size": args.batch_size,
         "dropout": args.dropout,
         "optimizer": "Adam",
         "seed": args.seed,
@@ -102,25 +103,25 @@ def run_experiment(args: argparse.Namespace) -> dict[str, Any]:
         "python_version": platform.python_version(),
     }
     write_json(run_dir / "config.json", config)
-
+    input_strs, target_strs = zip(*train_samples)
     started_at = time.perf_counter()
     epoch_losses = []
     for epoch in range(args.epochs):
-        encoder.train()
-        decoder.train()
-        random.shuffle(train_samples)
-        epoch_loss = sum(
-            train_one_sample(
-                input_str,
-                target_str,
+        epoch_loss = 0
+        for start in range(0, len(train_samples), args.batch_size):
+            batch_samples = train_samples[start : start + args.batch_size]
+            input_strs, target_strs = zip(*batch_samples)
+
+            batch_loss = train_batch_samples(
+                input_strs,
+                target_strs,
                 encoder,
                 decoder,
                 encoder_optimizer,
                 decoder_optimizer,
                 criterion,
             )
-            for input_str, target_str in train_samples
-        )
+            epoch_loss += batch_loss * len(batch_samples)
         avg_loss = epoch_loss / len(train_samples)
         epoch_losses.append(avg_loss)
         print(f"epoch {epoch + 1}/{args.epochs} avg_loss={avg_loss:.6f}")
@@ -189,13 +190,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--train-size", type=int, default=1000)
     parser.add_argument("--test-size", type=int, default=100)
     parser.add_argument("--epochs", type=int, default=10)
+    parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--dropout", type=float, default=0.0)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--test-seed", type=int, default=20260710)
     parser.add_argument("--notes", default="")
     parser.add_argument("--no-update-readme", action="store_true")
     args = parser.parse_args()
-    for name in ("hidden_size", "train_size", "test_size", "epochs"):
+    for name in ("hidden_size", "train_size", "test_size", "epochs", "batch_size"):
         if getattr(args, name) <= 0:
             parser.error(f"--{name.replace('_', '-')} must be greater than 0")
     if args.lr <= 0:
