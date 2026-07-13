@@ -283,19 +283,19 @@ Decoder 目前整体逻辑是对的，但建议把变量命名整理一下：
 
 当前已经有：
 
-- `train_one_sample`
+- `train_batch_samples`
 - `generate`
 - `eval_samples`
 
 建议整理顺序为：
 
 ```text
-5.1 train_one_sample
+5.1 train_batch_samples
 5.2 generate
 5.3 eval_samples
 ```
 
-### `train_one_sample` 的 checkpoint 建议
+### `train_batch_samples` 的 checkpoint 建议
 
 当前代码：
 
@@ -435,11 +435,11 @@ input[0:4]  -> output[6:10]
 
 ### 可能原因 3：训练方式是单样本 SGD，效率低且噪声大
 
-当前 `train_one_sample` 每次只训练一个样本：
+当前 `train_batch_samples` 每次只训练一个样本：
 
 ```python
 for i, (input_str, target_str) in enumerate(samples):
-    loss = train_one_sample(...)
+    loss = train_batch_samples(...)
 ```
 
 这能跑通流程，但训练效率低，也不方便稳定观察 loss。

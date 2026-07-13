@@ -268,7 +268,7 @@
 
   你要写一个函数：
 
-  def train_one_sample(input_str, target_str, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion):
+  def train_batch_samples(input_str, target_str, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion):
       ...
 
   大致流程：
@@ -314,7 +314,7 @@
 
   criterion = nn.CrossEntropyLoss()
 
-  loss = train_one_sample(
+  loss = train_batch_samples(
       "2002-1-23",
       "23/1/2002",
       encoder,

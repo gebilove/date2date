@@ -16,7 +16,7 @@
 ```text
 EncoderRNN
 DecoderRNN
-train_one_sample
+train_batch_samples
 generate
 eval_samples
 training loop
@@ -109,7 +109,7 @@ DecoderRNN.forward(...)
 - 找到当前 notebook 里的：
   - `EncoderRNN`
   - `DecoderRNN`
-  - `train_one_sample`
+  - `train_batch_samples`
   - `generate`
 - 确认 `EncoderRNN.forward()` 返回的是：
 
@@ -455,7 +455,7 @@ decoder_outputs.shape == (batch_size, target_seq_len, vocab_size)
 ### 常见问题
 
 - 不要再只传 `encoder_hidden`。
-- `train_one_sample` 和 `generate` 也都要跟着改。
+- `train_batch_samples` 和 `generate` 也都要跟着改。
 - 改接口时最容易漏掉 `generate()`。
 
 ---
@@ -578,7 +578,7 @@ attn_weights:  (batch_size, src_len)
 
 ### 目标
 
-改完 Decoder 后，让 `train_one_sample` 可以重新工作。
+改完 Decoder 后，让 `train_batch_samples` 可以重新工作。
 
 原来的训练流程是：
 
@@ -603,7 +603,7 @@ decoder_outputs, decoder_hidden = decoder(
 修改：
 
 ```python
-train_one_sample(...)
+train_batch_samples(...)
 ```
 
 确保它传入：
@@ -939,7 +939,7 @@ input_tensor = tensor_from_string(input_str, add_eos=True)
 
 重点检查：
 
-- `train_one_sample(...)`
+- `train_batch_samples(...)`
 - `generate(...)`
 - 任意手动测试 cell
 
@@ -983,7 +983,7 @@ attn_weights length: 10
 2. EncoderRNN
 3. BahdanauAttention
 4. DecoderRNN with Attention
-5. train_one_sample
+5. train_batch_samples
 6. generate
 7. eval_samples
 8. training loop
@@ -1086,7 +1086,7 @@ vocab logits
 - 训练流程和生成流程都能跑通：
 
 ```text
-train_one_sample(...)
+train_batch_samples(...)
 generate(...)
 eval_samples(...)
 ```

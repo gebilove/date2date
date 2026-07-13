@@ -14,7 +14,7 @@
 ### 你要检查
 - `EncoderRNN` 能接收 shape 为 `(1, input_seq_len)` 的输入。
 - `DecoderRNN` 能接收 `encoder_hidden` 和 `target_tensor`。
-- `train_one_sample(...)` 能返回一个 loss 数值。
+- `train_batch_samples(...)` 能返回一个 loss 数值。
 - `generate(...)` 能运行，不一定输出正确结果。
 
 ### 通过标准
@@ -69,7 +69,7 @@ len(test_inputs) == len(test_targets)
 ## Checkpoint 2：清理单样本训练函数
 
 ### 目标
-让 `train_one_sample` 成为一个安静、稳定、可被循环反复调用的训练单元。
+让 `train_batch_samples` 成为一个安静、稳定、可被循环反复调用的训练单元。
 
 ### 你要完成
 - 保留它的核心流程：
@@ -88,7 +88,7 @@ print("logits", logits.shape)
 ```
 
 ### 通过标准
-连续调用多次 `train_one_sample(...)` 不刷屏、不报错，每次都返回 loss 数值。
+连续调用多次 `train_batch_samples(...)` 不刷屏、不报错，每次都返回 loss 数值。
 
 ---
 
@@ -102,7 +102,7 @@ print("logits", logits.shape)
 
 - 把 `train_inputs` 和 `train_targets` 配对。
 - 每个 epoch 开始前打乱样本顺序。
-- 对每一对 `(input_str, target_str)` 调用 `train_one_sample`。
+- 对每一对 `(input_str, target_str)` 调用 `train_batch_samples`。
 - 累加 loss。
 - 每隔一定 step 输出平均 loss。
 
@@ -272,7 +272,7 @@ accuracy: 73/200 = 0.3650
 替换后：
 
 - shape 仍然对齐。
-- `train_one_sample` 能正常训练。
+- `train_batch_samples` 能正常训练。
 - `generate` 能正常生成。
 - loss 或 accuracy 相比普通 RNN 有改善。
 
