@@ -35,30 +35,34 @@ class NWKernelRegression(nn.Module):
 
 
 class AdditiveAttention(nn.Module):
-    # key_size, 
-    def __init__(self, query_size, key_size, hidden_size) -> None:
+    """Bahdanau additive attention for batched query and key sequences.
+
+    Expected shapes:
+        queries: (batch, num_queries, query_size)
+        keys: (batch, num_keys, key_size)
+        values: (batch, num_keys, value_size)
+    """
+
+    def __init__(self, query_size: int, key_size: int, hidden_size: int) -> None:
         super().__init__()
         self.wq = nn.Linear(query_size, hidden_size)
         self.wk = nn.Linear(key_size, hidden_size)
         self.wv = nn.Linear(hidden_size, 1)
+        self.attention_weights: torch.Tensor | None = None
 
-    # quries.shape(batch, len_q, query_size)
-    # keys.shape(batch, len_k, key_size)
-    # values.shape(batch, len_k, value_size)
-    def forward(self, queries, keys, values):
-        # q.shape(batch, len_q, hidden_size)
-        q = self.wq(queries)
-        # k.shape(batch, len_k, hidden_size)
-        k = self.wk(keys)
-        # t.shape(batch, len_q, len_k, hidden_size)
-        t = torch.tanh(q.unsqueeze(2) + k.unsqueeze(1))
-        # v.shape(batch, len_q, len_k, 1)
-        v = self.wv(t)
-        # v.shape(batch, len_q, len_k)
-        v = v.squeeze(-1)
-        self.attention_weights = nn.functional.softmax(v, dim=-1)
-        preds = torch.bmm(self.attention_weights, values)
-        return preds
+    def forward(
+        self,
+        queries: torch.Tensor,
+        keys: torch.Tensor,
+        values: torch.Tensor,
+    ) -> torch.Tensor:
+        queries = self.wq(queries)
+        keys = self.wk(keys)
+        scores = self.wv(
+            torch.tanh(queries.unsqueeze(2) + keys.unsqueeze(1))
+        ).squeeze(-1)
+        self.attention_weights = F.softmax(scores, dim=-1)
+        return torch.bmm(self.attention_weights, values)
 
 class ScalarAdditiveAttention(nn.Module):
     def __init__(self, hidden_size):
@@ -68,36 +72,51 @@ class ScalarAdditiveAttention(nn.Module):
             key_size=1,
             hidden_size=hidden_size,
         )
+        self.attention_weights: torch.Tensor | None = None
 
     def forward(self, queries, keys, values):
-        queries = queries.reshape(-1, 1)
+        queries = queries.reshape(-1, 1, 1)
         keys = keys.unsqueeze(-1)
         values = values.unsqueeze(-1)
 
         output = self.attention(queries, keys, values)
-        self.attention_weights = self.attention.attention_weights.squeeze(-1)
+        self.attention_weights = self.attention.attention_weights.squeeze(1)
         return output.reshape(-1)
 
+
 class DotProductAttention(nn.Module):
+    """Scaled dot-product attention for batched query and key sequences."""
+
     def __init__(self) -> None:
         super().__init__()
+        self.attention_weights: torch.Tensor | None = None
 
-    # queries.shape(batch, len_q, h)
-    # keys.shape(batch, len_k, h)
-    # values.shape(batch, len_k, value_size)
-    def forward(self, queries, keys, values):
-        d = queries.shape[-1]
+    def forward(
+        self,
+        queries: torch.Tensor,
+        keys: torch.Tensor,
+        values: torch.Tensor,
+    ) -> torch.Tensor:
+        feature_size = queries.shape[-1]
+        scores = torch.bmm(queries, keys.transpose(1, 2)) / feature_size**0.5
+        self.attention_weights = F.softmax(scores, dim=-1)
+        return torch.bmm(self.attention_weights, values)
 
-        # scores.shape (batch, len_q, len_k)
-        scores = torch.bmm( queries, keys.transpose(1,2)) /  (d**0.5)
-
-        # attention_weights.shape (batch, len_q, len_k)
-        self.attention_weights = nn.functional.softmax(scores,dim = -1)
-        preds = torch.bmm(self.attention_weights, values)
-        return preds
 
 class MultiHeadAttention(nn.Module):
-    def __init__(self, query_size, key_size, value_size, hidden_size, head_count) -> None:
+    """Multi-head scaled dot-product attention.
+
+    ``hidden_size`` is the feature size of each head and of the final output.
+    """
+
+    def __init__(
+        self,
+        query_size: int,
+        key_size: int,
+        value_size: int,
+        hidden_size: int,
+        head_count: int,
+    ) -> None:
         super().__init__()
         self.wq = nn.Linear(query_size, hidden_size * head_count)
         self.wk = nn.Linear(key_size, hidden_size * head_count)
@@ -106,36 +125,48 @@ class MultiHeadAttention(nn.Module):
         self.head_count = head_count
         self.hidden_size = hidden_size
         self.attention = DotProductAttention()
+        self.attention_weights: torch.Tensor | None = None
 
-    def forward(self, queries, keys, values):
-        prj_q = self.wq(queries)
-        prj_k = self.wk(keys)
-        prj_v = self.wv(values)
+    def forward(
+        self,
+        queries: torch.Tensor,
+        keys: torch.Tensor,
+        values: torch.Tensor,
+    ) -> torch.Tensor:
+        projected_queries = self.split_heads_for_attention(self.wq(queries))
+        projected_keys = self.split_heads_for_attention(self.wk(keys))
+        projected_values = self.split_heads_for_attention(self.wv(values))
 
-        prj_q = self.split_heads_for_attention(prj_q)
-        prj_k = self.split_heads_for_attention(prj_k)
-        prj_v = self.split_heads_for_attention(prj_v)
+        output = self.attention(
+            projected_queries,
+            projected_keys,
+            projected_values,
+        )
+        batch_size = queries.shape[0]
+        self.attention_weights = self.attention.attention_weights.reshape(
+            batch_size,
+            self.head_count,
+            queries.shape[1],
+            keys.shape[1],
+        )
+        return self.wo(self.combine_attention(output))
 
-
-        preds = self.attention(prj_q, prj_k, prj_v)
-
-        preds = self.combine_attention(preds)
-
-        preds =self.wo(preds)
-
-        return preds
-    def split_heads_for_attention(self, tensor):
-        tensor = tensor.reshape(tensor.shape[0], tensor.shape[1], self.head_count, -1)
+    def split_heads_for_attention(self, tensor: torch.Tensor) -> torch.Tensor:
+        tensor = tensor.reshape(
+            tensor.shape[0], tensor.shape[1], self.head_count, self.hidden_size
+        )
         tensor = tensor.permute(0, 2, 1, 3)
-        tensor = tensor.reshape(-1, tensor.shape[2], tensor.shape[3])
-        return tensor
+        return tensor.reshape(-1, tensor.shape[2], tensor.shape[3])
 
-
-    def combine_attention(self, tensor):
-        tensor = tensor.reshape(tensor.shape[0]//self.head_count, self.head_count, tensor.shape[1], tensor.shape[2])
+    def combine_attention(self, tensor: torch.Tensor) -> torch.Tensor:
+        tensor = tensor.reshape(
+            tensor.shape[0] // self.head_count,
+            self.head_count,
+            tensor.shape[1],
+            tensor.shape[2],
+        )
         tensor = tensor.permute(0, 2, 1, 3)
-        tensor = tensor.reshape(tensor.shape[0], tensor.shape[1], -1)
-        return tensor
+        return tensor.reshape(tensor.shape[0], tensor.shape[1], -1)
 
 
 @dataclass

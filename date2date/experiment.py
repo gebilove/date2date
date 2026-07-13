@@ -68,6 +68,41 @@ def qualitative_eval(
     ]
 
 
+def train_epochs(
+    train_samples: list[tuple[str, str]],
+    encoder: nn.Module,
+    decoder: nn.Module,
+    encoder_optimizer: torch.optim.Optimizer,
+    decoder_optimizer: torch.optim.Optimizer,
+    criterion: nn.Module,
+    epochs: int,
+    batch_size: int,
+    seed: int,
+) -> list[float]:
+    epoch_losses = []
+    shuffle_rng = random.Random(seed)
+    for epoch in range(epochs):
+        shuffle_rng.shuffle(train_samples)
+        epoch_loss = 0.0
+        for start in range(0, len(train_samples), batch_size):
+            batch_samples = train_samples[start : start + batch_size]
+            input_strs, target_strs = zip(*batch_samples)
+            batch_loss = train_batch_samples(
+                input_strs,
+                target_strs,
+                encoder,
+                decoder,
+                encoder_optimizer,
+                decoder_optimizer,
+                criterion,
+            )
+            epoch_loss += batch_loss * len(batch_samples)
+        avg_loss = epoch_loss / len(train_samples)
+        epoch_losses.append(avg_loss)
+        print(f"epoch {epoch + 1}/{epochs} avg_loss={avg_loss:.6f}")
+    return epoch_losses
+
+
 def run_experiment(args: argparse.Namespace) -> dict[str, Any]:
     set_seed(args.seed)
     run_id = new_run_id()
@@ -103,28 +138,18 @@ def run_experiment(args: argparse.Namespace) -> dict[str, Any]:
         "python_version": platform.python_version(),
     }
     write_json(run_dir / "config.json", config)
-    input_strs, target_strs = zip(*train_samples)
     started_at = time.perf_counter()
-    epoch_losses = []
-    for epoch in range(args.epochs):
-        epoch_loss = 0
-        for start in range(0, len(train_samples), args.batch_size):
-            batch_samples = train_samples[start : start + args.batch_size]
-            input_strs, target_strs = zip(*batch_samples)
-
-            batch_loss = train_batch_samples(
-                input_strs,
-                target_strs,
-                encoder,
-                decoder,
-                encoder_optimizer,
-                decoder_optimizer,
-                criterion,
-            )
-            epoch_loss += batch_loss * len(batch_samples)
-        avg_loss = epoch_loss / len(train_samples)
-        epoch_losses.append(avg_loss)
-        print(f"epoch {epoch + 1}/{args.epochs} avg_loss={avg_loss:.6f}")
+    epoch_losses = train_epochs(
+        train_samples,
+        encoder,
+        decoder,
+        encoder_optimizer,
+        decoder_optimizer,
+        criterion,
+        args.epochs,
+        args.batch_size,
+        args.seed,
+    )
 
     train_correct, train_total, train_acc = eval_samples(
         train_samples, encoder, decoder

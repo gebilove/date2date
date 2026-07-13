@@ -29,6 +29,7 @@ INDEX_FIELDS = [
     "train_size",
     "test_size",
     "epochs",
+    "batch_size",
     "dropout",
     "optimizer",
     "seed",

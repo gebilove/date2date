@@ -1,5 +1,7 @@
 """训练、生成、评估函数。"""
 
+from collections.abc import Iterable
+
 import torch
 
 try:
@@ -20,15 +22,40 @@ except ImportError:
     )
 
 
-def train_batch_samples(input_strs, target_strs, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion):
+def _validate_string_batch(values: Iterable[str], name: str) -> tuple[str, ...]:
+    if isinstance(values, (str, bytes)):
+        raise TypeError(f"{name} must be an iterable of strings, not a single string")
+
+    batch = tuple(values)
+    if not batch:
+        raise ValueError(f"{name} must not be empty")
+    if any(not isinstance(value, str) for value in batch):
+        raise TypeError(f"every item in {name} must be a string")
+    return batch
+
+
+def train_batch_samples(
+    input_strs,
+    target_strs,
+    encoder,
+    decoder,
+    encoder_optimizer,
+    decoder_optimizer,
+    criterion,
+):
+    input_batch = _validate_string_batch(input_strs, "input_strs")
+    target_batch = _validate_string_batch(target_strs, "target_strs")
+    if len(input_batch) != len(target_batch):
+        raise ValueError("input_strs and target_strs must contain the same number of samples")
+
     encoder.train()
     decoder.train()
     input_tensor = torch.cat(
-        [tensor_from_string(s) for s in input_strs],
+        [tensor_from_string(s) for s in input_batch],
         dim=0,
     )
     target_tensor = torch.cat(
-        [tensor_from_string(s, True) for s in target_strs],
+        [tensor_from_string(s, True) for s in target_batch],
         dim=0,
     )
     encoder_optimizer.zero_grad()

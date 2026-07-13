@@ -5,38 +5,19 @@ import torch.nn as nn
 from torch import Tensor
 from typing import Optional
 
+from attention import AdditiveAttention
+
 try:
     from .data import SOS_token
 except ImportError:
     from data import SOS_token
 
 
-class BahdanauAttention(nn.Module):
-    # key_size,
-    def __init__(self, query_size, key_size, hidden_size) -> None:
-        super().__init__()
-        self.wq = nn.Linear(query_size, hidden_size)
-        self.wk = nn.Linear(key_size, hidden_size)
-        self.wv = nn.Linear(hidden_size, 1)
-
-    # quries.shape(batch_size, len, query_size)
-    # keys.shape(batch_size, len, key_size)
-    # values.shape(batch_size, len,  value_size)
-    def forward(self, queries, keys, values):
-        q = self.wq(queries)
-        k = self.wk(keys)
-        t = torch.tanh(q + k)
-        v = self.wv(t)
-        self.attention_weights = nn.functional.softmax(v, dim=1)
-        preds = (self.attention_weights * values).sum(dim=1)
-        return preds
-
-
 class DecoderRNN_WithAttention(nn.Module):
     def __init__(self, vocab_size: int, hidden_size: int, output_size: int):
         super().__init__()
         self.hidden_size = hidden_size
-        self.attention = BahdanauAttention(self.hidden_size, self.hidden_size, self.hidden_size)
+        self.attention = AdditiveAttention(self.hidden_size, self.hidden_size, self.hidden_size)
         self.embedding = nn.Embedding(vocab_size, hidden_size)
         self.rnn = nn.GRU(hidden_size*2, hidden_size, batch_first=True)
         self.out = nn.Linear(hidden_size, output_size)
@@ -75,7 +56,6 @@ class DecoderRNN_WithAttention(nn.Module):
         embedded = self.embedding(input_token)
         context = self.attention(query, encoder_output, encoder_output)
         # rnn的hidden输入是(batch_size,seq_len,hidden)
-        context = context.unsqueeze(1)
         rnn_input = torch.cat([embedded, context], dim=-1)
         # rnn中输入的hidden不受 batch_first=True的控制，其shape仍然为(direction*num,batch_size,hidden_size)
         output, hidden = self.rnn(rnn_input, hidden)
