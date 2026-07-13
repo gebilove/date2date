@@ -1,0 +1,17 @@
+{
+  "model_type": "vanilla_rnn",
+  "hidden_size": 256,
+  "attention_heads": 4,
+  "lr": 0.001,
+  "train_size": 1000,
+  "test_size": 100,
+  "epochs": 10,
+  "batch_size": 32,
+  "dropout": 0.0,
+  "optimizer": "Adam",
+  "seed": 42,
+  "test_seed": 20260710,
+  "device": "cpu",
+  "torch_version": "2.8.0",
+  "python_version": "3.13.13"
+}

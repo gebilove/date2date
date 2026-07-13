@@ -63,6 +63,17 @@ class Date2DateModelsTest(unittest.TestCase):
                 self.assertEqual(decoder_hidden.shape, (1, 2, 8))
                 self.assertTrue(torch.isfinite(decoder_output).all())
 
+    def test_vanilla_baselines_use_expected_recurrent_cells(self):
+        rnn_encoder, rnn_decoder = build_models("vanilla_rnn", hidden_size=8)
+        gru_encoder, gru_decoder = build_models("vanilla_gru", hidden_size=8)
+
+        self.assertIsInstance(rnn_encoder.rnn, nn.RNN)
+        self.assertIsInstance(rnn_decoder.rnn, nn.RNN)
+        self.assertEqual(rnn_encoder.rnn.nonlinearity, "tanh")
+        self.assertEqual(rnn_decoder.rnn.nonlinearity, "tanh")
+        self.assertIsInstance(gru_encoder.rnn, nn.GRU)
+        self.assertIsInstance(gru_decoder.rnn, nn.GRU)
+
     def test_attention_models_use_expected_attention_layers(self):
         expected_layers = {
             "bahdanau": AdditiveAttention,

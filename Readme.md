@@ -26,6 +26,7 @@ YYYY-MM-DD -> DD/MM/YYYY
 | multi_head_attention | 32 | 100 | 100.00% | 100.00% | 2,048,782 | 14.4s |
 | vanilla_gru | 1 | 100 | 76.00% | 96.10% | 800,270 | 118.9s |
 | vanilla_gru | 32 | 100 | 82.00% | 96.70% | 800,270 | 2.8s |
+| vanilla_rnn | 32 | 100 | 0.00% | 69.90% | 273,934 | 1.9s |
 
 > 结果由 `experiments/experiments.csv` 自动生成；每种模型和 Batch 配置展示测试 Exact Match 最优的一次运行。
 
@@ -35,7 +36,8 @@ YYYY-MM-DD -> DD/MM/YYYY
 
 `--model` 支持以下完整的序列转换模型：
 
-- `vanilla_gru`：无注意力的 GRU Encoder-Decoder
+- `vanilla_gru`：使用 `torch.nn.GRU` 的无注意力 Encoder-Decoder
+- `vanilla_rnn`：使用 `torch.nn.RNN`（tanh）的无注意力 Encoder-Decoder
 - `bahdanau`：使用加性注意力的 GRU Decoder
 - `dot_product_attention`：使用缩放点积注意力的 GRU Decoder
 - `multi_head_attention`：使用多头缩放点积注意力的 GRU Decoder

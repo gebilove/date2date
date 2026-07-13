@@ -56,6 +56,7 @@ class ExperimentBatchingTest(unittest.TestCase):
             experiment.MODEL_NAMES,
             (
                 "vanilla_gru",
+                "vanilla_rnn",
                 "bahdanau",
                 "dot_product_attention",
                 "multi_head_attention",

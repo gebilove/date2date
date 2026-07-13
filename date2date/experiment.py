@@ -31,11 +31,12 @@ from .experiment_log import (
     write_json,
 )
 from .report import update_readme
-from .rnn import DecoderRNN, EncoderRNN
+from .rnn import DecoderRNN, DecoderVanillaRNN, EncoderRNN, EncoderVanillaRNN
 from .train import char_accuracy, eval_samples, generate, train_batch_samples
 
 MODEL_NAMES = (
     "vanilla_gru",
+    "vanilla_rnn",
     "bahdanau",
     "dot_product_attention",
     "multi_head_attention",
@@ -54,8 +55,15 @@ def build_models(
     hidden_size: int,
     attention_heads: int = 4,
 ) -> tuple[nn.Module, nn.Module]:
-    encoder = EncoderRNN(vocab_size, hidden_size)
-    if model_type == "vanilla_gru":
+    if model_type not in MODEL_NAMES:
+        raise ValueError(f"Unsupported model: {model_type}")
+
+    encoder_cls = EncoderVanillaRNN if model_type == "vanilla_rnn" else EncoderRNN
+    encoder = encoder_cls(vocab_size, hidden_size)
+
+    if model_type == "vanilla_rnn":
+        decoder = DecoderVanillaRNN(vocab_size, hidden_size, vocab_size)
+    elif model_type == "vanilla_gru":
         decoder = DecoderRNN(vocab_size, hidden_size, vocab_size)
     elif model_type == "bahdanau":
         decoder = DecoderRNN_WithAttention(vocab_size, hidden_size, vocab_size)
@@ -65,15 +73,13 @@ def build_models(
             hidden_size,
             vocab_size,
         )
-    elif model_type == "multi_head_attention":
+    else:
         decoder = DecoderRNN_WithMultiHeadAttention(
             vocab_size,
             hidden_size,
             vocab_size,
             attention_heads,
         )
-    else:
-        raise ValueError(f"Unsupported model: {model_type}")
     return encoder.to(DEVICE), decoder.to(DEVICE)
 
 

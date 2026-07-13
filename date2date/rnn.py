@@ -30,6 +30,22 @@ class EncoderRNN(nn.Module):
         return output, hidden
 
 
+class EncoderVanillaRNN(EncoderRNN):
+    """Encoder baseline backed by a single-layer tanh RNN."""
+
+    def __init__(self, vocab_size, hidden_size):
+        nn.Module.__init__(self)
+        self.hidden_size = hidden_size
+        self.embedding = nn.Embedding(vocab_size, hidden_size)
+        self.rnn = nn.RNN(
+            hidden_size,
+            hidden_size,
+            nonlinearity="tanh",
+            batch_first=True,
+        )
+        self.dropout = nn.Dropout(0.0)
+
+
 class DecoderRNN(nn.Module):
     def __init__(self, vocab_size: int, hidden_size: int, output_size: int):
         super().__init__()
@@ -77,3 +93,19 @@ class DecoderRNN(nn.Module):
         logits = self.out(hidden[-1]) # hidden[-1]表示最后一个num
         pred_token = logits.argmax(dim = -1,keepdim= True)
         return logits, hidden, pred_token
+
+
+class DecoderVanillaRNN(DecoderRNN):
+    """Decoder baseline backed by a single-layer tanh RNN."""
+
+    def __init__(self, vocab_size: int, hidden_size: int, output_size: int):
+        nn.Module.__init__(self)
+        self.hidden_size = hidden_size
+        self.embedding = nn.Embedding(vocab_size, hidden_size)
+        self.rnn = nn.RNN(
+            hidden_size,
+            hidden_size,
+            nonlinearity="tanh",
+            batch_first=True,
+        )
+        self.out = nn.Linear(hidden_size, output_size)
