@@ -25,6 +25,7 @@ INDEX_FIELDS = [
     "git_commit",
     "model_type",
     "hidden_size",
+    "attention_heads",
     "lr",
     "train_size",
     "test_size",

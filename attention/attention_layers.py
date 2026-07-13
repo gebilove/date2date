@@ -118,6 +118,8 @@ class MultiHeadAttention(nn.Module):
         head_count: int,
     ) -> None:
         super().__init__()
+        if head_count <= 0:
+            raise ValueError("head_count must be greater than 0")
         self.wq = nn.Linear(query_size, hidden_size * head_count)
         self.wk = nn.Linear(key_size, hidden_size * head_count)
         self.wv = nn.Linear(value_size, hidden_size * head_count)

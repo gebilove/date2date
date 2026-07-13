@@ -13,7 +13,11 @@ from typing import Any
 import torch
 import torch.nn as nn
 
-from .attention_rnn import DecoderRNN_WithAttention
+from .attention_rnn import (
+    DecoderRNN_WithAttention,
+    DecoderRNN_WithDotProductAttention,
+    DecoderRNN_WithMultiHeadAttention,
+)
 from .data import DEVICE, fixed_samples, vocab_size
 from .experiment_log import (
     PROJECT_ROOT,
@@ -30,7 +34,12 @@ from .report import update_readme
 from .rnn import DecoderRNN, EncoderRNN
 from .train import char_accuracy, eval_samples, generate, train_batch_samples
 
-MODEL_NAMES = ("vanilla_gru", "bahdanau")
+MODEL_NAMES = (
+    "vanilla_gru",
+    "bahdanau",
+    "dot_product_attention",
+    "multi_head_attention",
+)
 
 
 def set_seed(seed: int) -> None:
@@ -40,12 +49,29 @@ def set_seed(seed: int) -> None:
         torch.cuda.manual_seed_all(seed)
 
 
-def build_models(model_type: str, hidden_size: int) -> tuple[nn.Module, nn.Module]:
+def build_models(
+    model_type: str,
+    hidden_size: int,
+    attention_heads: int = 4,
+) -> tuple[nn.Module, nn.Module]:
     encoder = EncoderRNN(vocab_size, hidden_size)
     if model_type == "vanilla_gru":
         decoder = DecoderRNN(vocab_size, hidden_size, vocab_size)
     elif model_type == "bahdanau":
         decoder = DecoderRNN_WithAttention(vocab_size, hidden_size, vocab_size)
+    elif model_type == "dot_product_attention":
+        decoder = DecoderRNN_WithDotProductAttention(
+            vocab_size,
+            hidden_size,
+            vocab_size,
+        )
+    elif model_type == "multi_head_attention":
+        decoder = DecoderRNN_WithMultiHeadAttention(
+            vocab_size,
+            hidden_size,
+            vocab_size,
+            attention_heads,
+        )
     else:
         raise ValueError(f"Unsupported model: {model_type}")
     return encoder.to(DEVICE), decoder.to(DEVICE)
@@ -114,7 +140,11 @@ def run_experiment(args: argparse.Namespace) -> dict[str, Any]:
         {input_str for input_str, _ in test_samples},
     )
 
-    encoder, decoder = build_models(args.model, args.hidden_size)
+    encoder, decoder = build_models(
+        args.model,
+        args.hidden_size,
+        args.attention_heads,
+    )
     if hasattr(encoder, "dropout"):
         encoder.dropout.p = args.dropout
     encoder_optimizer = torch.optim.Adam(encoder.parameters(), lr=args.lr)
@@ -124,6 +154,7 @@ def run_experiment(args: argparse.Namespace) -> dict[str, Any]:
     config = {
         "model_type": args.model,
         "hidden_size": args.hidden_size,
+        "attention_heads": args.attention_heads,
         "lr": args.lr,
         "train_size": args.train_size,
         "test_size": args.test_size,
@@ -211,6 +242,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="运行并记录 date2date 实验")
     parser.add_argument("--model", choices=MODEL_NAMES, default="bahdanau")
     parser.add_argument("--hidden-size", type=int, default=256)
+    parser.add_argument("--attention-heads", type=int, default=4)
     parser.add_argument("--lr", type=float, default=0.001)
     parser.add_argument("--train-size", type=int, default=1000)
     parser.add_argument("--test-size", type=int, default=100)
@@ -222,7 +254,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--notes", default="")
     parser.add_argument("--no-update-readme", action="store_true")
     args = parser.parse_args()
-    for name in ("hidden_size", "train_size", "test_size", "epochs", "batch_size"):
+    for name in (
+        "hidden_size",
+        "attention_heads",
+        "train_size",
+        "test_size",
+        "epochs",
+        "batch_size",
+    ):
         if getattr(args, name) <= 0:
             parser.error(f"--{name.replace('_', '-')} must be greater than 0")
     if args.lr <= 0:

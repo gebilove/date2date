@@ -1,6 +1,8 @@
+import sys
 import unittest
 from unittest import mock
 
+from attention import MultiHeadAttention
 from date2date import experiment
 from date2date.experiment_log import INDEX_FIELDS
 
@@ -49,8 +51,62 @@ class ExperimentBatchingTest(unittest.TestCase):
         self.assertCountEqual(second_epoch, [sample[0] for sample in samples])
         self.assertNotEqual(first_epoch, second_epoch)
 
-    def test_experiment_index_records_batch_size(self):
+    def test_model_names_include_all_sequence_models(self):
+        self.assertEqual(
+            experiment.MODEL_NAMES,
+            (
+                "vanilla_gru",
+                "bahdanau",
+                "dot_product_attention",
+                "multi_head_attention",
+            ),
+        )
+
+    def test_build_models_uses_requested_attention_head_count(self):
+        _, decoder = experiment.build_models(
+            "multi_head_attention",
+            hidden_size=8,
+            attention_heads=3,
+        )
+        self.assertIsInstance(decoder.attention, MultiHeadAttention)
+        self.assertEqual(decoder.attention.head_count, 3)
+
+    def test_build_models_rejects_unknown_model(self):
+        with self.assertRaisesRegex(ValueError, "Unsupported model"):
+            experiment.build_models("unknown", hidden_size=8)
+
+    def test_parse_args_supports_attention_heads(self):
+        with mock.patch.object(sys, "argv", ["experiment"]):
+            args = experiment.parse_args()
+        self.assertEqual(args.attention_heads, 4)
+
+        with mock.patch.object(
+            sys,
+            "argv",
+            [
+                "experiment",
+                "--model",
+                "multi_head_attention",
+                "--attention-heads",
+                "3",
+            ],
+        ):
+            args = experiment.parse_args()
+        self.assertEqual(args.model, "multi_head_attention")
+        self.assertEqual(args.attention_heads, 3)
+
+    def test_parse_args_rejects_non_positive_attention_heads(self):
+        with mock.patch.object(
+            sys,
+            "argv",
+            ["experiment", "--attention-heads", "0"],
+        ):
+            with self.assertRaises(SystemExit):
+                experiment.parse_args()
+
+    def test_experiment_index_records_batch_and_attention_configuration(self):
         self.assertIn("batch_size", INDEX_FIELDS)
+        self.assertIn("attention_heads", INDEX_FIELDS)
 
 
 if __name__ == "__main__":

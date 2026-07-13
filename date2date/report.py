@@ -18,17 +18,17 @@ def _percent(value: str) -> str:
 
 
 def _best_runs(rows: list[dict[str, str]]) -> list[dict[str, str]]:
-    best: dict[str, dict[str, str]] = {}
+    best: dict[tuple[str, int], dict[str, str]] = {}
     for row in rows:
-        model = row["model_type"]
+        key = (row["model_type"], int(row["batch_size"]))
         score = (
             float(row["test_exact_match"]),
             float(row["test_char_accuracy"]),
             row["date"],
         )
-        current = best.get(model)
+        current = best.get(key)
         if current is None:
-            best[model] = row
+            best[key] = row
             continue
         current_score = (
             float(current["test_exact_match"]),
@@ -36,8 +36,8 @@ def _best_runs(rows: list[dict[str, str]]) -> list[dict[str, str]]:
             current["date"],
         )
         if score > current_score:
-            best[model] = row
-    return sorted(best.values(), key=lambda row: row["model_type"])
+            best[key] = row
+    return [best[key] for key in sorted(best)]
 
 
 def render_results(index_path: Path = INDEX_PATH) -> str:
@@ -50,13 +50,14 @@ def render_results(index_path: Path = INDEX_PATH) -> str:
         return "_尚未记录自动化实验。_"
 
     lines = [
-        "| 模型 | 测试集 | Exact Match | 字符准确率 | 参数量 | 训练耗时 |",
-        "|---|---:|---:|---:|---:|---:|",
+        "| 模型 | Batch | 测试集 | Exact Match | 字符准确率 | 参数量 | 训练耗时 |",
+        "|---|---:|---:|---:|---:|---:|---:|",
     ]
     for row in _best_runs(rows):
         lines.append(
-            "| {model} | {test_size} | {exact} | {char} | {params:,} | {duration:.1f}s |".format(
+            "| {model} | {batch_size} | {test_size} | {exact} | {char} | {params:,} | {duration:.1f}s |".format(
                 model=row["model_type"],
+                batch_size=row["batch_size"],
                 test_size=row["test_size"],
                 exact=_percent(row["test_exact_match"]),
                 char=_percent(row["test_char_accuracy"]),
@@ -71,7 +72,7 @@ def render_results(index_path: Path = INDEX_PATH) -> str:
     lines.extend(
         [
             "",
-            f"> 结果由 `{display_path}` 自动生成；每种模型展示测试 Exact Match 最优的一次运行。",
+            f"> 结果由 `{display_path}` 自动生成；每种模型和 Batch 配置展示测试 Exact Match 最优的一次运行。",
         ]
     )
     return "\n".join(lines)

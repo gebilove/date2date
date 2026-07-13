@@ -18,14 +18,29 @@ YYYY-MM-DD -> DD/MM/YYYY
 
 <!-- EXPERIMENT_RESULTS_START -->
 
-| 模型 | 测试集 | Exact Match | 字符准确率 | 参数量 | 训练耗时 |
-|---|---:|---:|---:|---:|---:|
-| bahdanau | 100 | 100.00% | 100.00% | 1,128,719 | 202.3s |
-| vanilla_gru | 100 | 76.00% | 96.10% | 800,270 | 118.9s |
+| 模型 | Batch | 测试集 | Exact Match | 字符准确率 | 参数量 | 训练耗时 |
+|---|---:|---:|---:|---:|---:|---:|
+| bahdanau | 1 | 100 | 100.00% | 100.00% | 1,128,719 | 202.3s |
+| bahdanau | 32 | 100 | 100.00% | 100.00% | 1,128,719 | 6.4s |
+| dot_product_attention | 32 | 100 | 100.00% | 100.00% | 996,878 | 4.2s |
+| multi_head_attention | 32 | 100 | 100.00% | 100.00% | 2,048,782 | 14.4s |
+| vanilla_gru | 1 | 100 | 76.00% | 96.10% | 800,270 | 118.9s |
+| vanilla_gru | 32 | 100 | 82.00% | 96.70% | 800,270 | 2.8s |
 
-> 结果由 `experiments/experiments.csv` 自动生成；每种模型展示测试 Exact Match 最优的一次运行。
+> 结果由 `experiments/experiments.csv` 自动生成；每种模型和 Batch 配置展示测试 Exact Match 最优的一次运行。
 
 <!-- EXPERIMENT_RESULTS_END -->
+
+## 支持的模型
+
+`--model` 支持以下完整的序列转换模型：
+
+- `vanilla_gru`：无注意力的 GRU Encoder-Decoder
+- `bahdanau`：使用加性注意力的 GRU Decoder
+- `dot_product_attention`：使用缩放点积注意力的 GRU Decoder
+- `multi_head_attention`：使用多头缩放点积注意力的 GRU Decoder
+
+`--attention-heads` 控制多头注意力的 head 数，默认值为 4；其他模型会记录该配置但不使用它。
 
 ## 自动运行实验
 
@@ -33,14 +48,15 @@ YYYY-MM-DD -> DD/MM/YYYY
 
 ```bash
 .venv/bin/python -m date2date.experiment \
-  --model bahdanau \
+  --model multi_head_attention \
   --hidden-size 256 \
+  --attention-heads 4 \
   --lr 0.001 \
   --train-size 1000 \
   --test-size 100 \
   --epochs 10 \
   --seed 42 \
-  --notes "Bahdanau Attention 基准实验"
+  --notes "Multi-Head Attention 基准实验"
 ```
 
 命令会自动复用固定测试集，并保存配置、指标、固定样例预测、checkpoint 和 `experiments/experiments.csv`。训练成功后，README 中的实验结果表也会同步更新。

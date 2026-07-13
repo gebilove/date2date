@@ -118,6 +118,12 @@ class ScalarAdditiveAttentionTest(unittest.TestCase):
 
 
 class MultiHeadAttentionTest(unittest.TestCase):
+    def test_rejects_non_positive_head_count(self):
+        for head_count in (0, -1):
+            with self.subTest(head_count=head_count):
+                with self.assertRaisesRegex(ValueError, "head_count"):
+                    MultiHeadAttention(2, 2, 2, hidden_size=2, head_count=head_count)
+
     def test_matches_manual_multi_head_reference_and_backpropagates(self):
         torch.manual_seed(4)
         attention = MultiHeadAttention(

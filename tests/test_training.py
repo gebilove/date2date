@@ -4,7 +4,7 @@ import unittest
 import torch
 from torch import nn
 
-from date2date.experiment import build_models
+from date2date.experiment import MODEL_NAMES, build_models
 from date2date.train import train_batch_samples
 
 
@@ -42,10 +42,10 @@ class TrainBatchSamplesTest(unittest.TestCase):
         self.assertTrue(math.isfinite(loss))
         self.assertGreaterEqual(loss, 0)
 
-    def test_both_models_update_parameters_for_a_real_batch(self):
+    def test_all_models_update_parameters_for_a_real_batch(self):
         inputs = ["2002-01-23", "1999-12-08"]
         targets = ["23/01/2002", "08/12/1999"]
-        for model_type in ("vanilla_gru", "bahdanau"):
+        for model_type in MODEL_NAMES:
             with self.subTest(model_type=model_type):
                 components = self._training_components(model_type)
                 encoder, decoder = components[:2]

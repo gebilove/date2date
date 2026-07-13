@@ -1,11 +1,12 @@
-"""Bahdanau Attention（加性注意力）及其 Decoder。"""
+"""Attention-based decoders for date2date sequence conversion."""
+
+from typing import Optional
 
 import torch
 import torch.nn as nn
 from torch import Tensor
-from typing import Optional
 
-from attention import AdditiveAttention
+from attention import AdditiveAttention, DotProductAttention, MultiHeadAttention
 
 try:
     from .data import SOS_token
@@ -13,53 +14,108 @@ except ImportError:
     from data import SOS_token
 
 
-class DecoderRNN_WithAttention(nn.Module):
-    def __init__(self, vocab_size: int, hidden_size: int, output_size: int):
+class _DecoderRNNWithAttention(nn.Module):
+    def __init__(
+        self,
+        vocab_size: int,
+        hidden_size: int,
+        output_size: int,
+        attention: nn.Module,
+    ):
         super().__init__()
         self.hidden_size = hidden_size
-        self.attention = AdditiveAttention(self.hidden_size, self.hidden_size, self.hidden_size)
+        self.attention = attention
         self.embedding = nn.Embedding(vocab_size, hidden_size)
-        self.rnn = nn.GRU(hidden_size*2, hidden_size, batch_first=True)
+        self.rnn = nn.GRU(hidden_size * 2, hidden_size, batch_first=True)
         self.out = nn.Linear(hidden_size, output_size)
 
-    def forward(self, encoder_output: Tensor, target_tensor: Optional[Tensor] = None, max_len: int = 20):
-        # encoder_output 是encoder所有时间步最后一层的输出的 hiddeng向量
-        # encoder_output.shape (batch_size, len, dierction*hidden)
-        # 传入 attention 的keys和values 都是 encoder_output
-        # 传入 attention 的query是 分别是 encoder_hidden（只在第一次用） 和 decode的 t-1步hidden，
-        # target_tensor.shape is (batch_size, seq_len)
-        # foward.shape is (batch_size, seq_len,vocab_size)
-        batch_size = encoder_output.shape[0]
-        hidden = encoder_output[:,-1:].permute(1, 0, 2)
-        outputs = []
-        # input_token的格式是 (batch_size,seq_len)
-        input_token = torch.full(
-            (batch_size, 1), SOS_token, dtype=torch.long, device=encoder_output.device
-        )  # 设置起始词元
-        loop_len = max_len
-        if target_tensor is not None:
-            loop_len = target_tensor.shape[1]
-
-        for i in range(loop_len):
-            logits, hidden, pred_token = self.forward_step(hidden, input_token, encoder_output)
-            outputs.append(logits)
-
+    def forward(
+        self,
+        encoder_output: Tensor,
+        target_tensor: Optional[Tensor] = None,
+        max_len: int = 20,
+    ):
+        batch_size = encoder_output.size(0)
+        decoder_input = torch.full(
+            (batch_size, 1),
+            SOS_token,
+            dtype=torch.long,
+            device=encoder_output.device,
+        )
+        decoder_hidden = encoder_output[:, -1, :].unsqueeze(0)
+        decoder_outputs = []
+        steps = target_tensor.size(1) if target_tensor is not None else max_len
+        for i in range(steps):
+            decoder_output, decoder_hidden = self.forward_step(
+                decoder_input,
+                decoder_hidden,
+                encoder_output,
+            )
+            decoder_outputs.append(decoder_output)
             if target_tensor is not None:
-                input_token = target_tensor[:,i].unsqueeze(1)
-            else :
-                input_token = pred_token.detach()
-        decoder_outputs = torch.stack(tensors=outputs, dim=1)
-        return decoder_outputs, hidden
+                decoder_input = target_tensor[:, i].unsqueeze(1)
+            else:
+                decoder_input = decoder_output.argmax(dim=-1).detach()
 
-    def forward_step(self, hidden, input_token, encoder_output):
-        query = hidden[-1].unsqueeze(1)
-        embedded = self.embedding(input_token)
+        return torch.cat(decoder_outputs, dim=1), decoder_hidden
+
+    def forward_step(
+        self,
+        decoder_input: Tensor,
+        decoder_hidden: Tensor,
+        encoder_output: Tensor,
+    ):
+        embedded = self.embedding(decoder_input)
+        query = decoder_hidden.permute(1, 0, 2)
         context = self.attention(query, encoder_output, encoder_output)
-        # rnn的hidden输入是(batch_size,seq_len,hidden)
-        rnn_input = torch.cat([embedded, context], dim=-1)
-        # rnn中输入的hidden不受 batch_first=True的控制，其shape仍然为(direction*num,batch_size,hidden_size)
-        output, hidden = self.rnn(rnn_input, hidden)
-        # output.shape 是 (batch_size,seq_len,direction*hidden_size)
-        logits = self.out(hidden[-1]) # hidden[-1]表示最后一个num
-        pred_token = logits.argmax(dim = -1,keepdim= True)
-        return logits, hidden, pred_token
+        rnn_input = torch.cat((embedded, context), dim=2)
+        output, hidden = self.rnn(rnn_input, decoder_hidden)
+        return self.out(output), hidden
+
+
+class DecoderRNN_WithAttention(_DecoderRNNWithAttention):
+    """GRU decoder with Bahdanau additive attention."""
+
+    def __init__(self, vocab_size: int, hidden_size: int, output_size: int):
+        super().__init__(
+            vocab_size,
+            hidden_size,
+            output_size,
+            AdditiveAttention(hidden_size, hidden_size, hidden_size),
+        )
+
+
+class DecoderRNN_WithDotProductAttention(_DecoderRNNWithAttention):
+    """GRU decoder with scaled dot-product attention."""
+
+    def __init__(self, vocab_size: int, hidden_size: int, output_size: int):
+        super().__init__(
+            vocab_size,
+            hidden_size,
+            output_size,
+            DotProductAttention(),
+        )
+
+
+class DecoderRNN_WithMultiHeadAttention(_DecoderRNNWithAttention):
+    """GRU decoder with multi-head scaled dot-product attention."""
+
+    def __init__(
+        self,
+        vocab_size: int,
+        hidden_size: int,
+        output_size: int,
+        attention_heads: int,
+    ):
+        super().__init__(
+            vocab_size,
+            hidden_size,
+            output_size,
+            MultiHeadAttention(
+                hidden_size,
+                hidden_size,
+                hidden_size,
+                hidden_size,
+                attention_heads,
+            ),
+        )
