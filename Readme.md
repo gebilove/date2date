@@ -14,6 +14,23 @@ YYYY-MM-DD -> DD/MM/YYYY
 
 项目目标不是用神经网络替代规则字符串处理，而是通过同一个任务，从零实现并比较不同序列建模结构。
 
+## 环境安装
+
+当前核心环境使用 Python 3.13 和 PyTorch 2.8.x：
+
+```bash
+python3.13 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+```
+
+核心训练、实验 CLI 和测试只依赖 PyTorch；测试使用标准库 `unittest`，不需要安装 pytest。需要运行受支持的 notebook 时，额外安装：
+
+```bash
+.venv/bin/python -m pip install -r requirements-notebooks.txt
+```
+
+`attention/attention-Nadaraya-Watson.ipynb` 和 `attention/attention_train_test.ipynb` 仍依赖旧版 `d2l`，属于 legacy 教学材料，未纳入当前 Python 3.13 依赖环境。后续应将其中的 `d2l` API 替换为原生 PyTorch/Matplotlib 实现。
+
 ## 实验结果
 
 <!-- EXPERIMENT_RESULTS_START -->
