@@ -120,12 +120,12 @@ class MultiHeadAttention(nn.Module):
         super().__init__()
         if head_count <= 0:
             raise ValueError("head_count must be greater than 0")
-        self.wq = nn.Linear(query_size, hidden_size * head_count)
-        self.wk = nn.Linear(key_size, hidden_size * head_count)
-        self.wv = nn.Linear(value_size, hidden_size * head_count)
-        self.wo = nn.Linear(hidden_size * head_count, hidden_size)
+        self.d_head = hidden_size // head_count
+        self.wq = nn.Linear(query_size, hidden_size)
+        self.wk = nn.Linear(key_size, hidden_size)
+        self.wv = nn.Linear(value_size, hidden_size)
+        self.wo = nn.Linear(hidden_size, hidden_size)
         self.head_count = head_count
-        self.hidden_size = hidden_size
         self.attention = DotProductAttention()
         self.attention_weights: torch.Tensor | None = None
 
@@ -155,7 +155,7 @@ class MultiHeadAttention(nn.Module):
 
     def split_heads_for_attention(self, tensor: torch.Tensor) -> torch.Tensor:
         tensor = tensor.reshape(
-            tensor.shape[0], tensor.shape[1], self.head_count, self.hidden_size
+            tensor.shape[0], tensor.shape[1], self.head_count, self.d_head
         )
         tensor = tensor.permute(0, 2, 1, 3)
         return tensor.reshape(-1, tensor.shape[2], tensor.shape[3])

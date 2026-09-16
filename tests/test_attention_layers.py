@@ -130,8 +130,8 @@ class MultiHeadAttentionTest(unittest.TestCase):
             query_size=3,
             key_size=4,
             value_size=5,
-            hidden_size=2,
-            head_count=3,
+            hidden_size=8,
+            head_count=4,
         )
         queries = torch.randn(2, 4, 3, requires_grad=True)
         keys = torch.randn(2, 6, 4, requires_grad=True)
@@ -139,21 +139,21 @@ class MultiHeadAttentionTest(unittest.TestCase):
 
         output = attention(queries, keys, values)
 
-        projected_queries = attention.wq(queries).reshape(2, 4, 3, 2).permute(0, 2, 1, 3)
-        projected_keys = attention.wk(keys).reshape(2, 6, 3, 2).permute(0, 2, 1, 3)
-        projected_values = attention.wv(values).reshape(2, 6, 3, 2).permute(0, 2, 1, 3)
+        projected_queries = attention.wq(queries).reshape(2, 4, 4, 2).permute(0, 2, 1, 3)
+        projected_keys = attention.wk(keys).reshape(2, 6, 4, 2).permute(0, 2, 1, 3)
+        projected_values = attention.wv(values).reshape(2, 6, 4, 2).permute(0, 2, 1, 3)
         scores = torch.matmul(projected_queries, projected_keys.transpose(-2, -1)) / math.sqrt(2)
         expected_weights = F.softmax(scores, dim=-1)
         per_head = torch.matmul(expected_weights, projected_values)
-        combined = per_head.permute(0, 2, 1, 3).reshape(2, 4, 6)
+        combined = per_head.permute(0, 2, 1, 3).reshape(2, 4, 8)
         expected_output = attention.wo(combined)
 
-        self.assertEqual(output.shape, (2, 4, 2))
-        self.assertEqual(attention.attention_weights.shape, (2, 3, 4, 6))
+        self.assertEqual(output.shape, (2, 4, 8))
+        self.assertEqual(attention.attention_weights.shape, (2, 4, 4, 6))
         torch.testing.assert_close(attention.attention_weights, expected_weights)
         torch.testing.assert_close(output, expected_output)
         torch.testing.assert_close(
-            attention.attention_weights.sum(dim=-1), torch.ones(2, 3, 4)
+            attention.attention_weights.sum(dim=-1), torch.ones(2, 4, 4)
         )
 
         output.square().sum().backward()
@@ -166,8 +166,8 @@ class MultiHeadAttentionTest(unittest.TestCase):
                 self.assertTrue(torch.isfinite(parameter.grad).all())
 
     def test_split_and_combine_preserve_projected_order(self):
-        attention = MultiHeadAttention(2, 2, 2, hidden_size=3, head_count=2)
-        projected = torch.arange(2 * 4 * 6, dtype=torch.float32).reshape(2, 4, 6)
+        attention = MultiHeadAttention(2, 2, 2, hidden_size=8, head_count=2)
+        projected = torch.arange(2 * 4 * 8, dtype=torch.float32).reshape(2, 4, 8)
 
         split = attention.split_heads_for_attention(projected)
         combined = attention.combine_attention(split)
