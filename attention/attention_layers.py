@@ -120,6 +120,10 @@ class MultiHeadAttention(nn.Module):
         super().__init__()
         if head_count <= 0:
             raise ValueError("head_count must be greater than 0")
+        if hidden_size % head_count != 0:
+            raise ValueError(
+                f"hidden_size ({hidden_size}) must be divisible by head_count ({head_count})"
+            )
         self.d_head = hidden_size // head_count
         self.wq = nn.Linear(query_size, hidden_size)
         self.wk = nn.Linear(key_size, hidden_size)

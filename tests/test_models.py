@@ -82,16 +82,17 @@ class Date2DateModelsTest(unittest.TestCase):
         }
         for model_type, attention_type in expected_layers.items():
             with self.subTest(model_type=model_type):
+                # hidden_size 需要能被 attention_heads 整除
                 _, decoder = build_models(
                     model_type,
-                    hidden_size=8,
+                    hidden_size=12,
                     attention_heads=3,
                 )
                 self.assertIsInstance(decoder.attention, attention_type)
 
         _, decoder = build_models(
             "multi_head_attention",
-            hidden_size=8,
+            hidden_size=12,
             attention_heads=3,
         )
         self.assertEqual(decoder.attention.head_count, 3)
