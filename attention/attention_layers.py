@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+
 import torch
 from torch import nn
 from torch.nn import functional as F
@@ -83,6 +84,27 @@ class ScalarAdditiveAttention(nn.Module):
         self.attention_weights = self.attention.attention_weights.squeeze(1)
         return output.reshape(-1)
 
+# valid_lens.shape = (B,) 即 每个样本都只有一个有效长度
+def build_padding_mask(scores: torch.Tensor, valid_lens: torch.Tensor) -> torch.Tensor:
+    seq_k = scores.shape[-1]
+    # arrange.shape = (seq_k)
+    arange = torch.arange(seq_k, device=scores.device)
+    # arange[None, :].shape = (1, seq_k)
+    # tensor.masked_fill(mask,value)是对mask中为true的位置对tensor同样的位置赋值为value
+    # 故padding mask中不需要的位置应该为true，所以下面的比较是arange[None, :] >= valid_lens[:, None]
+    keep = arange[None, :] >= valid_lens[:, None]
+    keep = keep.unsqueeze(1)
+    return keep
+
+
+def build_causal_mask(scores:torch.Tensor)-> torch.Tensor:
+    seq_q = scores.shape[-2]
+    seq_k = scores.shape[-1]
+    causal = torch.triu(
+        torch.ones(seq_q, seq_k, dtype=torch.bool, device=scores.device),
+        diagonal=1,)
+    return causal
+
 
 class DotProductAttention(nn.Module):
     """Scaled dot-product attention for batched query and key sequences."""
@@ -96,9 +118,17 @@ class DotProductAttention(nn.Module):
         queries: torch.Tensor,
         keys: torch.Tensor,
         values: torch.Tensor,
+        valid_lens: torch.Tensor | None = None,
+        causal: bool = False
     ) -> torch.Tensor:
         feature_size = queries.shape[-1]
         scores = torch.bmm(queries, keys.transpose(1, 2)) / feature_size**0.5
+        if causal:
+            scores = scores.masked_fill(build_causal_mask(scores), float("-inf"))
+
+        if valid_lens is not None:
+            scores = scores.masked_fill(build_padding_mask(scores, valid_lens), float("-inf"))
+
         self.attention_weights = F.softmax(scores, dim=-1)
         return torch.bmm(self.attention_weights, values)
 
