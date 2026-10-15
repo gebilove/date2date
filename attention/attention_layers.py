@@ -168,6 +168,8 @@ class MultiHeadAttention(nn.Module):
         queries: torch.Tensor,
         keys: torch.Tensor,
         values: torch.Tensor,
+        valid_lens: torch.Tensor | None = None,
+        causal: bool = False
     ) -> torch.Tensor:
         projected_queries = self.split_heads_for_attention(self.wq(queries))
         projected_keys = self.split_heads_for_attention(self.wk(keys))
@@ -177,6 +179,8 @@ class MultiHeadAttention(nn.Module):
             projected_queries,
             projected_keys,
             projected_values,
+            valid_lens,
+            causal
         )
         batch_size = queries.shape[0]
         self.attention_weights = self.attention.attention_weights.reshape(
@@ -187,14 +191,18 @@ class MultiHeadAttention(nn.Module):
         )
         return self.wo(self.combine_attention(output))
 
+    # tensor.shape(head,seq,d*w)
     def split_heads_for_attention(self, tensor: torch.Tensor) -> torch.Tensor:
+        # tensor.shape(head,seq,d*w)将d*w分成head份，也就是将w分成head份
         tensor = tensor.reshape(
             tensor.shape[0], tensor.shape[1], self.head_count, self.d_head
         )
         tensor = tensor.permute(0, 2, 1, 3)
         return tensor.reshape(-1, tensor.shape[2], tensor.shape[3])
 
+    # tensor.shape(head,seq,d*w)
     def combine_attention(self, tensor: torch.Tensor) -> torch.Tensor:
+        # tensor
         tensor = tensor.reshape(
             tensor.shape[0] // self.head_count,
             self.head_count,
