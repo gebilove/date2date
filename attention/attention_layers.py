@@ -175,6 +175,11 @@ class MultiHeadAttention(nn.Module):
         projected_keys = self.split_heads_for_attention(self.wk(keys))
         projected_values = self.split_heads_for_attention(self.wv(values))
 
+        if valid_lens is not None:
+            # 每个样本被拆成 head_count 行 (行序为 batch*head_count + head),
+            # valid_lens 需按头数重复，才能和拆头后的 scores 对齐
+            valid_lens = valid_lens.repeat_interleave(self.head_count, dim=0)
+
         output = self.attention(
             projected_queries,
             projected_keys,

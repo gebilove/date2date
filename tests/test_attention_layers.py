@@ -172,7 +172,7 @@ class MultiHeadAttentionTest(unittest.TestCase):
         split = attention.split_heads_for_attention(projected)
         combined = attention.combine_attention(split)
 
-        self.assertEqual(split.shape, (4, 4, 3))
+        self.assertEqual(split.shape, (4, 4, 4))
         torch.testing.assert_close(combined, projected)
 
 
