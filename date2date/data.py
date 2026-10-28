@@ -25,8 +25,10 @@ EOS_token = stoi["<EOS>"]
 vocab_size = len(itos)
 
 
-def tensor_from_string(s, add_eos=False):
+def tensor_from_string(s, add_sos = False, add_eos=False):
     ids = [stoi[ch] for ch in s]
+    if add_sos:
+        ids.insert(0, SOS_token)
     if add_eos:
         ids.append(EOS_token)
 
