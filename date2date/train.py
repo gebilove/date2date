@@ -55,7 +55,7 @@ def train_batch_samples(
         dim=0,
     )
     target_tensor = torch.cat(
-        [tensor_from_string(s, True) for s in target_batch],
+        [tensor_from_string(s, add_eos=True) for s in target_batch],
         dim=0,
     )
     encoder_optimizer.zero_grad()
