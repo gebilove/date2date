@@ -14,13 +14,17 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 chars = "0123456789-/"
 # - `<SOS>`：decoder 生成时的起始 token；
 # - `<EOS>`：target 序列结束标记。
-special_tokens = ["<SOS>", "<EOS>"]
+# - `<ESP>`：only-decoder模型中输入和输出的分隔符
+
+special_tokens = ["<SOS>", "<EOS>", "<SEP>"]
+
 
 itos = special_tokens + list(chars)
 stoi = {ch: i for i, ch in enumerate(itos)}
 
 SOS_token = stoi["<SOS>"]
 EOS_token = stoi["<EOS>"]
+SEP_token = stoi["<SEP>"]
 
 vocab_size = len(itos)
 
